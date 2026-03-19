@@ -20,7 +20,7 @@ export default function LoginPage() {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      // No navigate here because signInWithRedirect will reload the page
+      // With signInWithPopup, the page does not reload, but onAuthStateChanged in AuthContext will handle the update.
     } catch (err) {
       setError(err.response?.data?.error || 'Google login failed');
     } finally {
