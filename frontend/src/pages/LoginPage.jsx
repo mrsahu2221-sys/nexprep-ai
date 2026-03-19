@@ -20,11 +20,12 @@ export default function LoginPage() {
       setError('');
       setLoading(true);
       await loginWithGoogle();
-      // With signInWithPopup, the page does not reload, but onAuthStateChanged in AuthContext will handle the update.
+      // Only set loading to false if we haven't started a redirect
+      // (signInWithRedirect doesn't resolve until after the redirection starts)
     } catch (err) {
-      setError(err.response?.data?.error || 'Google login failed');
-    } finally {
-      setLoading(false);
+      console.error('Login Page Error:', err);
+      setError(err.response?.data?.error || err.message || 'Google login failed');
+      setLoading(false); // Reset loading on error
     }
   };
 

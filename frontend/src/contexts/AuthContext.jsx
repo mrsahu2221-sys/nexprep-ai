@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   onAuthStateChanged, 
   signInWithPopup, 
+  signInWithRedirect, 
+  getRedirectResult, 
   signOut 
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
@@ -59,6 +61,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // Handle Redirect Result (Fallback)
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        console.log('✅ Redirect login successful');
+        await syncWithBackend(result.user);
+      }
+    }).catch((err) => {
+      console.error('Redirect Error:', err.message);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        alert('Authentication failed. Please try again.');
+      }
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         await syncWithBackend(firebaseUser);
@@ -74,7 +89,29 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
+  const loginWithGoogle = async () => {
+    try {
+      // Check if mobile or similar restricted environment
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        console.log('📱 Mobile detected - Using Redirect');
+        return await signInWithRedirect(auth, googleProvider);
+      }
+
+      console.log('🖥️ Desktop detected - Attempting Popup');
+      return await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      console.error('Login Method Error:', err.code, err.message);
+      
+      // Fallback for blocked popups or other issues
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        console.log('⚠️ Popup blocked - Falling back to Redirect');
+        return await signInWithRedirect(auth, googleProvider);
+      }
+      throw err;
+    }
+  };
 
 
   const logout = () => signOut(auth);
